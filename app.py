@@ -4,6 +4,25 @@ from pathlib import Path
 import time
 import PyPDF2
 import os
+from functiontools import wraps
+from flask import request, Response
+
+def check_auth(username, password):
+    return username == 'maika' and password == 'perogostini'
+
+def authenticate():
+    return Response(
+        'ログインが必要です', 401,
+        {'WWW-Authenticate': 'Basic realm="Login Required"'}
+    )        
+def requires_auth(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.authorization
+        if not auth or not check_auth(auth.username, auth.password):
+            return authenticate()
+        return f(*args, **kwargs)
+    return decorated
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
@@ -75,11 +94,13 @@ def extract_text_from_file(filepath):
         raise ValueError(f"未対応のファイル形式です: {file_ext}")
 
 @app.route('/')
+@requires_auth
 def index():
     """アップロード画面"""
     return render_template('upload.html')
 
 @app.route('/upload', methods=['POST'])
+@requires_auth
 def upload_file():
     """ファイルをアップロードしてOCR/テキスト抽出処理"""
     if 'file' not in request.files:
@@ -161,6 +182,7 @@ def upload_file():
         return f"処理エラー: {str(e)}", 500
 
 @app.route('/download/<filename>')
+@requires_auth
 def download_file(filename):
     """結果ファイルをダウンロード"""
     file_path = Path("results") / filename
@@ -169,11 +191,13 @@ def download_file(filename):
     return "ファイルが見つかりません", 404
 
 @app.route('/compare')
+@requires_auth
 def compare_page():
     """比較画面"""
     return render_template('compare.html')
 
 @app.route('/compare_upload', methods=['POST'])
+@requires_auth
 def compare_upload():
     """2つのファイルを比較（全ファイル形式対応）"""
     if 'file1' not in request.files or 'file2' not in request.files:
@@ -307,4 +331,5 @@ if __name__ == '__main__':
 
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
 
