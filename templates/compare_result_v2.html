@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>比較結果 - 契約書OCRシステム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Yu Gothic', 'Meiryo', sans-serif;
+            background-color: #2b2b2b;
+            color: #333;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+        
+        .file-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .file-card {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .file-card h3 {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+        
+        .file-card p {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .toolbar {
+            background: #f5f5f5;
+            padding: 15px 30px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #5568d3;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        .legend {
+            background: #f9f9f9;
+            padding: 20px 30px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .legend-box {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        
+        .legend-delete {
+            background: #ffebee;
+        }
+        
+        .legend-insert {
+            background: #e8f5e9;
+        }
+        
+        .legend-change {
+            background: #fff9e6;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .text-panel {
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 0;
+            max-height: 800px;
+            overflow-y: auto;
+        }
+        
+        .panel-header {
+            position: sticky;
+            top: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            font-weight: bold;
+            font-size: 16px;
+            z-index: 10;
+            border-radius: 8px 8px 0 0;
+        }
+        
+        .panel-content {
+            padding: 20px;
+        }
+        
+        .line {
+            padding: 8px 12px;
+            margin: 2px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', 'MS Gothic', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            transition: all 0.2s;
+        }
+        
+        .line:hover {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .line-normal {
+            background: transparent;
+        }
+        
+        .line-delete {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+        
+        .line-insert {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .line-change {
+            background: #fff9e6;
+            border-left: 4px solid #ff9800;
+        }
+        
+        .line-number {
+            display: inline-block;
+            width: 50px;
+            color: #999;
+            font-size: 11px;
+            margin-right: 10px;
+            user-select: none;
+        }
+        
+        .stats {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .stat-delete .stat-number {
+            color: #f44336;
+        }
+        
+        .stat-insert .stat-number {
+            color: #4caf50;
+        }
+        
+        .stat-change .stat-number {
+            color: #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 比較結果（全文表示）</h1>
+            
+            <div class="file-info">
+                <div class="file-card">
+                    <h3>ファイル1（旧版）</h3>
+                    <p>📄 {{ file1_name }}</p>
+                </div>
+                <div class="file-card">
+                    <h3>ファイル2（新版）</h3>
+                    <p>📄 {{ file2_name }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="toolbar">
+            <a href="/compare" class="btn btn-primary">🔄 他のファイルを比較</a>
+            <a href="/" class="btn btn-secondary">🏠 ホームに戻る</a>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-box legend-delete"></div>
+                <span><strong>赤</strong>：削除された行（旧版のみ）</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box legend-insert"></div>
+                <span><strong>緑</strong>：追加された行（新版のみ）</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-box legend-change"></div>
+                <span><strong>黄</strong>：変更された行</span>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="stats">
+                <div class="stats-grid">
+                    <div class="stat-item stat-delete">
+                        <div class="stat-number">{{ highlighted_text1 | selectattr('type', 'equalto', 'delete') | list | length }}</div>
+                        <div class="stat-label">削除された行</div>
+                    </div>
+                    <div class="stat-item stat-insert">
+                        <div class="stat-number">{{ highlighted_text2 | selectattr('type', 'equalto', 'insert') | list | length }}</div>
+                        <div class="stat-label">追加された行</div>
+                    </div>
+                    <div class="stat-item stat-change">
+                        <div class="stat-number">{{ (highlighted_text1 | selectattr('type', 'equalto', 'change') | list | length) + (highlighted_text2 | selectattr('type', 'equalto', 'change') | list | length) }}</div>
+                        <div class="stat-label">変更された行</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="comparison-grid">
+                <div class="text-panel">
+                    <div class="panel-header">
+                        📄 {{ file1_name }} （旧版）
+                    </div>
+                    <div class="panel-content">
+                        {% for item in highlighted_text1 %}
+                        <div class="line line-{{ item.type }}">
+                            <span class="line-number">{{ loop.index }}</span>{{ item.line }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <div class="text-panel">
+                    <div class="panel-header">
+                        📄 {{ file2_name }} （新版）
+                    </div>
+                    <div class="panel-content">
+                        {% for item in highlighted_text2 %}
+                        <div class="line line-{{ item.type }}">
+                            <span class="line-number">{{ loop.index }}</span>{{ item.line }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

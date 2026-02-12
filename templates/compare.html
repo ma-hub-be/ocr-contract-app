@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ファイル比較 - OCRシステム</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            padding: 50px;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 32px;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+            font-size: 16px;
+        }
+        .upload-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .upload-box {
+            border: 3px dashed #ddd;
+            border-radius: 10px;
+            padding: 40px 20px;
+            text-align: center;
+            background: #fafafa;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .upload-box:hover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+        .upload-box.dragover {
+            border-color: #667eea;
+            background: #e6e6ff;
+        }
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        .upload-label {
+            font-size: 18px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .file-name {
+            margin-top: 15px;
+            color: #667eea;
+            font-weight: bold;
+            min-height: 20px;
+        }
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s;
+        }
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 30px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 16px;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .info-box {
+            background: #e7f3ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 30px;
+            border-left: 4px solid #667eea;
+        }
+        .info-box h3 {
+            margin: 0 0 10px 0;
+            color: #667eea;
+        }
+        .info-box ul {
+            margin: 10px 0 0 20px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 ファイル比較システム</h1>
+        <p class="subtitle">2つのファイルを比較して差分を表示します（PDF・画像・Word・Excel対応）</p>
+        
+        <form id="compareForm" method="POST" action="/compare_upload" enctype="multipart/form-data">
+            <div class="upload-section">
+                <div class="upload-box" id="uploadBox1" onclick="document.getElementById('file1').click()">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-label">ファイル1（旧版）</div>
+                    <p style="color: #999; font-size: 14px;">クリックして選択</p>
+                    <input type="file" name="file1" id="file1" accept=".pdf,.jpg,.jpeg,.png,.tiff,.tif,.bmp,.docx,.xlsx,.xls" required>
+                    <div class="file-name" id="fileName1"></div>
+                </div>
+                
+                <div class="upload-box" id="uploadBox2" onclick="document.getElementById('file2').click()">
+                    <div class="upload-icon">📄</div>
+                    <div class="upload-label">ファイル2（新版）</div>
+                    <p style="color: #999; font-size: 14px;">クリックして選択</p>
+                    <input type="file" name="file2" id="file2" accept=".pdf,.jpg,.jpeg,.png,.tiff,.tif,.bmp,.docx,.xlsx,.xls" required>
+                    <div class="file-name" id="fileName2"></div>
+                </div>
+            </div>
+            
+            <button type="submit" class="submit-btn" id="submitBtn" disabled>
+                🔍 比較を開始
+            </button>
+        </form>
+        
+        <div class="info-box">
+            <h3>💡 使い方</h3>
+            <ul>
+                <li>左側に旧バージョン、右側に新バージョンのファイルを選択</li>
+                <li>PDF・画像・Word・Excelすべてに対応（異なる形式同士もOK）</li>
+                <li>自動でOCR/テキスト抽出を行い、テキストを比較</li>
+                <li>文字単位の差分を色分けして表示（追加：緑、削除：赤、変更：橙）</li>
+            </ul>
+        </div>
+        
+        <a href="/" class="back-link">← 通常のOCR処理に戻る</a>
+    </div>
+    
+    <script>
+        const file1 = document.getElementById('file1');
+        const file2 = document.getElementById('file2');
+        const fileName1 = document.getElementById('fileName1');
+        const fileName2 = document.getElementById('fileName2');
+        const submitBtn = document.getElementById('submitBtn');
+        
+        function checkBothFiles() {
+            if (file1.files.length > 0 && file2.files.length > 0) {
+                submitBtn.disabled = false;
+            } else {
+                submitBtn.disabled = true;
+            }
+        }
+        
+        file1.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                fileName1.textContent = '📎 ' + this.files[0].name;
+                checkBothFiles();
+            }
+        });
+        
+        file2.addEventListener('change', function() {
+            if (this.files.length > 0) {
+                fileName2.textContent = '📎 ' + this.files[0].name;
+                checkBothFiles();
+            }
+        });
+        
+        // ドラッグ&ドロップ対応
+        const boxes = [
+            {box: document.getElementById('uploadBox1'), input: file1, display: fileName1},
+            {box: document.getElementById('uploadBox2'), input: file2, display: fileName2}
+        ];
+        
+        boxes.forEach(({box, input, display}) => {
+            box.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('dragover');
+            });
+            
+            box.addEventListener('dragleave', function() {
+                this.classList.remove('dragover');
+            });
+            
+            box.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.docx', '.xlsx', '.xls'];
+                const droppedFileName = files[0].name.toLowerCase();
+                const isAllowed = allowedExtensions.some(ext => droppedFileName.endsWith(ext));
+                
+                if (files.length > 0 && isAllowed) {
+                    input.files = files;
+                    display.textContent = '📎 ' + files[0].name;
+                    checkBothFiles();
+                } else {
+                    alert('対応していないファイル形式です。PDF・画像・Word・Excelファイルをアップロードしてください。');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

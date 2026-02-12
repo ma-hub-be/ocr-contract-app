@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>比較結果 - 契約書OCRシステム</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Yu Gothic', 'Meiryo', sans-serif;
+            background-color: #2b2b2b;
+            color: #333;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 15px;
+        }
+        
+        .file-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .file-card {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .file-card h3 {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+        
+        .file-card p {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        .toolbar {
+            background: #f5f5f5;
+            padding: 15px 30px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .btn-primary {
+            background-color: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: #5568d3;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #545b62;
+        }
+        
+        .tab-buttons {
+            background: #f5f5f5;
+            padding: 0 30px;
+            display: flex;
+            gap: 0;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .tab-btn {
+            padding: 15px 30px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            font-weight: bold;
+        }
+        
+        .tab-btn:hover {
+            color: #667eea;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .side-by-side {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .text-panel {
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 30px;
+            max-height: 700px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.7;
+            white-space: pre-wrap;
+        }
+        
+        .text-panel h3 {
+            font-family: 'Segoe UI', sans-serif;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+            color: #667eea;
+        }
+        
+        .diff-container {
+            background: white;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        /* 差分表示のカスタムスタイル */
+        .diff-container table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+        
+        .diff-container td {
+            padding: 5px 10px;
+            border: 1px solid #e0e0e0;
+            vertical-align: top;
+        }
+        
+        .diff-container .diff_header {
+            background: #667eea;
+            color: white;
+            font-weight: bold;
+            text-align: center;
+            padding: 10px;
+        }
+        
+        .diff-container .diff_next {
+            background: #f0f0f0;
+            text-align: center;
+        }
+        
+        .diff-container .diff_add {
+            background: #d4edda;
+        }
+        
+        .diff-container .diff_chg {
+            background: #fff3cd;
+        }
+        
+        .diff-container .diff_sub {
+            background: #f8d7da;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+        }
+        
+        .color-add {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .color-delete {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .color-change {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 比較結果</h1>
+            
+            <div class="file-info">
+                <div class="file-card">
+                    <h3>ファイル1（旧版）</h3>
+                    <p>📄 {{ file1_name }}</p>
+                </div>
+                <div class="file-card">
+                    <h3>ファイル2（新版）</h3>
+                    <p>📄 {{ file2_name }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="toolbar">
+            <a href="/compare" class="btn btn-primary">🔄 他のファイルを比較</a>
+            <a href="/" class="btn btn-secondary">🏠 ホームに戻る</a>
+        </div>
+        
+        <div class="tab-buttons">
+            <button class="tab-btn active" onclick="switchTab('diff')">差分表示</button>
+            <button class="tab-btn" onclick="switchTab('sidebyside')">並べて表示</button>
+        </div>
+        
+        <div class="content">
+            <div id="diff-tab" class="tab-content active">
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color color-add"></div>
+                        <span>追加された行</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color color-delete"></div>
+                        <span>削除された行</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color color-change"></div>
+                        <span>変更された行</span>
+                    </div>
+                </div>
+                
+                <div class="diff-container">
+                    {{ diff_html|safe }}
+                </div>
+            </div>
+            
+            <div id="sidebyside-tab" class="tab-content">
+                <div class="side-by-side">
+                    <div class="text-panel">
+                        <h3>📄 {{ file1_name }}</h3>
+                        {{ text1 }}
+                    </div>
+                    <div class="text-panel">
+                        <h3>📄 {{ file2_name }}</h3>
+                        {{ text2 }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        function switchTab(tabName) {
+            // タブボタンの切り替え
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // タブコンテンツの切り替え
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            if (tabName === 'diff') {
+                document.getElementById('diff-tab').classList.add('active');
+            } else {
+                document.getElementById('sidebyside-tab').classList.add('active');
+            }
+        }
+    </script>
+</body>
+</html>
