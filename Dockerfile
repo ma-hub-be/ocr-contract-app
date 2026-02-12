@@ -24,7 +24,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # ポート公開
-EXPOSE 8000
+EXPOSE 10000
 
 # アプリ起動（Gunicornを使用）
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--timeout", "300", "app:app"]
+
+CMD ["gunicorn", "--bind", "0.0.0.0:10000", "--timeout", "300", "app:app"]
