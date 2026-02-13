@@ -29,7 +29,7 @@ def requires_auth(f):
 
 # ===== テキスト正規化（差分比較の精度向上・強化版） =====
 def normalize_text(text):
-    """OCR結果を正規化して比較しやすくする（強化版）"""
+    """OCR結果を正規化して比較しやすくする（段落ベース）"""
     # --- ページ X --- のヘッダーを除去（OCR由来）
     text = re.sub(r'-+\s*ページ\s*\d+\s*-+', '', text)
 
@@ -55,30 +55,51 @@ def normalize_text(text):
     text = text.replace('．', '.').replace('，', ',').replace('：', ':')
     text = text.replace('；', ';').replace('（', '(').replace('）', ')')
 
-    # 各行の前後の空白を削除
+    # 各行の前後の空白を削除し、空行を除去
     lines = [line.strip() for line in text.splitlines()]
-
-    # 空行を除去
     lines = [line for line in lines if line]
 
-    # OCRの改行ズレ対策：短すぎる行を次の行と結合
-    merged_lines = []
-    buffer = ""
+    # ===== 段落ベースの結合 =====
+    # すべての行を一旦つなげてから、意味のある区切りで分割し直す
+    full_text = ''
     for line in lines:
-        if buffer:
-            buffer = buffer + line
+        full_text += line
+
+    # 文末記号（。.）で分割して、1文=1行にする
+    # 「第X条」「(X)」「X.」などの見出しも独立した行にする
+    sentences = []
+    # まず句点で分割
+    parts = re.split(r'(。)', full_text)
+
+    buffer = ''
+    for part in parts:
+        buffer += part
+        if part == '。':
+            sentences.append(buffer.strip())
+            buffer = ''
+
+    if buffer.strip():
+        sentences.append(buffer.strip())
+
+    # 見出し行を分離（「第X条」で始まる部分など）
+    final_lines = []
+    for sentence in sentences:
+        # 「第X条（...）」のパターンを分離
+        heading_match = re.match(r'(第\d+条[（(][^）)]*[）)])(.*)', sentence)
+        if heading_match:
+            final_lines.append(heading_match.group(1).strip())
+            remaining = heading_match.group(2).strip()
+            if remaining:
+                final_lines.append(remaining)
         else:
-            buffer = line
+            # 「X. 」「(X) 」で始まる番号付き項目を分離
+            item_parts = re.split(r'(?=(?:^|\s)\d+[.．]\s)', sentence)
+            for p in item_parts:
+                p = p.strip()
+                if p:
+                    final_lines.append(p)
 
-        # 行が文末記号で終わっている、または十分な長さがある場合は確定
-        if re.search(r'[。．.、，,）)\]】」』}]$', buffer) or len(buffer) > 40:
-            merged_lines.append(buffer)
-            buffer = ""
-
-    if buffer:
-        merged_lines.append(buffer)
-
-    return '\n'.join(merged_lines)
+    return '\n'.join(final_lines)
 
 # ===== Flaskアプリ =====
 app = Flask(__name__)
@@ -263,7 +284,7 @@ def compare_upload():
         text1 = extract_text_from_file(filepath1)
         text2 = extract_text_from_file(filepath2)
 
-        # テキスト正規化（差分精度向上）
+        # テキスト正規化（段落ベースで統一）
         text1 = normalize_text(text1)
         text2 = normalize_text(text2)
 
