@@ -27,18 +27,58 @@ def requires_auth(f):
         return f(*args, **kwargs)
     return decorated
 
-# ===== テキスト正規化（差分比較の精度向上） =====
+# ===== テキスト正規化（差分比較の精度向上・強化版） =====
 def normalize_text(text):
-    """OCR結果を正規化して比較しやすくする"""
+    """OCR結果を正規化して比較しやすくする（強化版）"""
+    # --- ページ X --- のヘッダーを除去（OCR由来）
+    text = re.sub(r'-+\s*ページ\s*\d+\s*-+', '', text)
+
     # 全角スペース→半角スペース
     text = text.replace('\u3000', ' ')
+
+    # タブを半角スペースに
+    text = text.replace('\t', ' ')
+
     # 連続するスペースを1つに
     text = re.sub(r' +', ' ', text)
+
+    # 全角数字→半角数字
+    zen_to_han = str.maketrans('０１２３４５６７８９', '0123456789')
+    text = text.translate(zen_to_han)
+
+    # 全角英字→半角英字
+    zen_alpha = 'ＡＢＣＤＥＦＧＨＩＪＫＬＭＮＯＰＱＲＳＴＵＶＷＸＹＺａｂｃｄｅｆｇｈｉｊｋｌｍｎｏｐｑｒｓｔｕｖｗｘｙｚ'
+    han_alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+    text = text.translate(str.maketrans(zen_alpha, han_alpha))
+
+    # 全角記号の正規化
+    text = text.replace('．', '.').replace('，', ',').replace('：', ':')
+    text = text.replace('；', ';').replace('（', '(').replace('）', ')')
+
     # 各行の前後の空白を削除
     lines = [line.strip() for line in text.splitlines()]
+
     # 空行を除去
     lines = [line for line in lines if line]
-    return '\n'.join(lines)
+
+    # OCRの改行ズレ対策：短すぎる行を次の行と結合
+    merged_lines = []
+    buffer = ""
+    for line in lines:
+        if buffer:
+            buffer = buffer + line
+        else:
+            buffer = line
+
+        # 行が文末記号で終わっている、または十分な長さがある場合は確定
+        if re.search(r'[。．.、，,）)\]】」』}]$', buffer) or len(buffer) > 40:
+            merged_lines.append(buffer)
+            buffer = ""
+
+    if buffer:
+        merged_lines.append(buffer)
+
+    return '\n'.join(merged_lines)
 
 # ===== Flaskアプリ =====
 app = Flask(__name__)
@@ -58,11 +98,9 @@ def extract_text_from_file(filepath):
     file_ext = Path(filepath).suffix.lower()
 
     if file_ext == '.pdf':
-        # PDF処理
         return extract_text(str(filepath))
 
     elif file_ext in ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp']:
-        # 画像ファイル処理（バイナリとして扱う → UTF-8エラー対策）
         from PIL import Image
         import pytesseract
 
@@ -73,7 +111,6 @@ def extract_text_from_file(filepath):
         return pytesseract.image_to_string(processed_image, config=custom_config)
 
     elif file_ext == '.docx':
-        # Word文書処理
         from docx import Document
 
         doc = Document(filepath)
@@ -90,7 +127,6 @@ def extract_text_from_file(filepath):
         return extracted_text
 
     elif file_ext in ['.xlsx', '.xls']:
-        # Excel処理
         from openpyxl import load_workbook
 
         wb = load_workbook(filepath, data_only=True)
@@ -128,24 +164,19 @@ def upload_file():
     if file.filename == '':
         return "ファイルが選択されていません", 400
 
-    # 対応ファイル形式の確認
     allowed_extensions = ['.pdf', '.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp', '.docx', '.xlsx', '.xls']
     file_ext = Path(file.filename).suffix.lower()
 
     if file_ext not in allowed_extensions:
         return f"対応していないファイル形式です。対応形式: {', '.join(allowed_extensions)}", 400
 
-    # ファイルを保存
     filename = f"{int(time.time())}_{file.filename}"
     filepath = app.config['UPLOAD_FOLDER'] / filename
     file.save(filepath)
 
-    # OCR/テキスト抽出処理
     try:
-        # 共通関数を使用してテキスト抽出
         extracted_text = extract_text_from_file(filepath)
 
-        # ファイル種類の表示名を設定
         if file_ext == '.pdf':
             try:
                 with open(filepath, 'rb') as f:
@@ -165,7 +196,6 @@ def upload_file():
         print(f"抽出文字数: {len(extracted_text)}")
         print(f"最初の100文字: {extracted_text[:100] if len(extracted_text) > 0 else '(空)'}")
 
-        # 結果をテキストファイルに保存
         Path("results").mkdir(exist_ok=True)
         result_file = Path("results") / f"抽出結果_{int(time.time())}.txt"
 
@@ -178,7 +208,6 @@ def upload_file():
 
         print(f"結果ファイル: {result_file.name}")
 
-        # アップロードファイルを削除
         if filepath.exists():
             os.remove(filepath)
 
@@ -188,7 +217,6 @@ def upload_file():
                              filename=result_file.name)
 
     except Exception as e:
-        # エラー時もファイル削除
         if filepath.exists():
             os.remove(filepath)
 
@@ -226,14 +254,12 @@ def compare_upload():
     if file1.filename == '' or file2.filename == '':
         return "2つのファイルを選択してください", 400
 
-    # ファイル保存
     filepath1 = app.config['UPLOAD_FOLDER'] / f"{int(time.time())}_1_{file1.filename}"
     filepath2 = app.config['UPLOAD_FOLDER'] / f"{int(time.time())}_2_{file2.filename}"
     file1.save(filepath1)
     file2.save(filepath2)
 
     try:
-        # テキスト抽出（共通関数を使用）
         text1 = extract_text_from_file(filepath1)
         text2 = extract_text_from_file(filepath2)
 
@@ -241,20 +267,17 @@ def compare_upload():
         text1 = normalize_text(text1)
         text2 = normalize_text(text2)
 
-        # 行ごとに分割
         lines1 = text1.splitlines()
         lines2 = text2.splitlines()
 
         import difflib
         matcher = difflib.SequenceMatcher(None, lines1, lines2)
 
-        # 行ごとの差分情報を作成
         highlighted_lines1 = []
         highlighted_lines2 = []
 
         for tag, i1, i2, j1, j2 in matcher.get_opcodes():
             if tag == 'equal':
-                # 同じ行
                 for i in range(i1, i2):
                     highlighted_lines1.append({
                         'type': 'normal',
@@ -267,7 +290,6 @@ def compare_upload():
                     })
 
             elif tag == 'delete':
-                # 削除された行
                 for i in range(i1, i2):
                     highlighted_lines1.append({
                         'type': 'delete',
@@ -275,7 +297,6 @@ def compare_upload():
                     })
 
             elif tag == 'insert':
-                # 追加された行
                 for j in range(j1, j2):
                     highlighted_lines2.append({
                         'type': 'insert',
@@ -283,23 +304,13 @@ def compare_upload():
                     })
 
             elif tag == 'replace':
-                # 変更された行 - 文字単位で比較
                 old_lines = lines1[i1:i2]
                 new_lines = lines2[j1:j2]
 
-                # 行ペアごとに文字単位の差分を計算
                 for idx in range(max(len(old_lines), len(new_lines))):
-                    if idx < len(old_lines):
-                        old_line = old_lines[idx]
-                    else:
-                        old_line = ""
+                    old_line = old_lines[idx] if idx < len(old_lines) else ""
+                    new_line = new_lines[idx] if idx < len(new_lines) else ""
 
-                    if idx < len(new_lines):
-                        new_line = new_lines[idx]
-                    else:
-                        new_line = ""
-
-                    # 文字単位の差分
                     char_matcher = difflib.SequenceMatcher(None, old_line, new_line)
 
                     old_html = ""
@@ -342,7 +353,6 @@ def compare_upload():
         return f"比較処理エラー: {str(e)}", 500
 
     finally:
-        # ファイル削除
         if filepath1.exists():
             os.remove(filepath1)
         if filepath2.exists():
