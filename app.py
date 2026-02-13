@@ -27,20 +27,24 @@ def requires_auth(f):
         return f(*args, **kwargs)
     return decorated
 
-# ===== テキスト正規化（差分比較の精度向上・強化版） =====
+# ===== テキスト正規化（差分比較の精度向上・最終版） =====
 def normalize_text(text):
-    """OCR結果を正規化して比較しやすくする（段落ベース）"""
+    """OCR結果を正規化して比較しやすくする（最終版）"""
     # --- ページ X --- のヘッダーを除去（OCR由来）
     text = re.sub(r'-+\s*ページ\s*\d+\s*-+', '', text)
 
-    # 全角スペース→半角スペース
-    text = text.replace('\u3000', ' ')
+    # 全角スペース→除去
+    text = text.replace('\u3000', '')
 
-    # タブを半角スペースに
-    text = text.replace('\t', ' ')
+    # タブを除去
+    text = text.replace('\t', '')
 
-    # 連続するスペースを1つに
-    text = re.sub(r' +', ' ', text)
+    # 半角スペースを除去
+    text = text.replace(' ', '')
+
+    # 改行を除去（全テキストを1つに結合）
+    text = text.replace('\n', '')
+    text = text.replace('\r', '')
 
     # 全角数字→半角数字
     zen_to_han = str.maketrans('０１２３４５６７８９', '0123456789')
@@ -55,49 +59,28 @@ def normalize_text(text):
     text = text.replace('．', '.').replace('，', ',').replace('：', ':')
     text = text.replace('；', ';').replace('（', '(').replace('）', ')')
 
-    # 各行の前後の空白を削除し、空行を除去
-    lines = [line.strip() for line in text.splitlines()]
-    lines = [line for line in lines if line]
+    # ===== 句点（。）で分割して1文=1行にする =====
+    parts = re.split(r'(。)', text)
 
-    # ===== 段落ベースの結合 =====
-    # すべての行を一旦つなげてから、意味のある区切りで分割し直す
-    full_text = ''
-    for line in lines:
-        full_text += line
-
-    # 文末記号（。.）で分割して、1文=1行にする
-    # 「第X条」「(X)」「X.」などの見出しも独立した行にする
     sentences = []
-    # まず句点で分割
-    parts = re.split(r'(。)', full_text)
-
     buffer = ''
     for part in parts:
         buffer += part
         if part == '。':
             sentences.append(buffer.strip())
             buffer = ''
-
     if buffer.strip():
         sentences.append(buffer.strip())
 
-    # 見出し行を分離（「第X条」で始まる部分など）
+    # ===== 見出し行を分離 =====
     final_lines = []
     for sentence in sentences:
-        # 「第X条（...）」のパターンを分離
-        heading_match = re.match(r'(第\d+条[（(][^）)]*[）)])(.*)', sentence)
-        if heading_match:
-            final_lines.append(heading_match.group(1).strip())
-            remaining = heading_match.group(2).strip()
-            if remaining:
-                final_lines.append(remaining)
-        else:
-            # 「X. 」「(X) 」で始まる番号付き項目を分離
-            item_parts = re.split(r'(?=(?:^|\s)\d+[.．]\s)', sentence)
-            for p in item_parts:
-                p = p.strip()
-                if p:
-                    final_lines.append(p)
+        # 「第X条(...)」のパターンを分離
+        parts = re.split(r'(第\d+条[（(][^）)]*[）)])', sentence)
+        for p in parts:
+            p = p.strip()
+            if p:
+                final_lines.append(p)
 
     return '\n'.join(final_lines)
 
